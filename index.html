@@ -50,8 +50,10 @@ small{color:#555}
 <option value="entrada">Entrada</option>
 <option value="saida">Saída</option>
 </select>
+<!-- Input de data para lançar na data escolhida -->
+<input id="dataEscolhida" type="date" placeholder="Escolha dia/mês/ano">
 <button onclick="lancar()">Lançar</button>
-<button class="gray" onclick="imprimirMes()">Imprimir Mês</button>
+<button class="gray" onclick="imprimirMes()">Imprimir Relatório</button>
 <button class="red" onclick="deletarCliente()">Deletar Cliente</button>
 </div>
 
@@ -63,9 +65,9 @@ small{color:#555}
 
 <!-- RELATÓRIO -->
 <div id="relatorioPrint">
-<h2>Relatório Mensal</h2>
+<h2>Relatório</h2>
 <p><b>Cliente:</b> <span id="clientePrint"></span></p>
-<p><b>Mês:</b> <span id="mesPrint"></span></p>
+<p><b>Data:</b> <span id="mesPrint"></span></p>
 <hr>
 <div id="historicoPrint"></div>
 </div>
@@ -117,9 +119,13 @@ function lancar(){
   const descEl  = document.getElementById('desc');
   const notaEl  = document.getElementById('nota');
   const tipoEl  = document.getElementById('tipo');
+  const dataEl  = document.getElementById('dataEscolhida');
 
   const valor = Number(valorEl.value);
   if(valor <= 0){ alert('Informe um valor válido'); return; }
+
+  // Salva o lançamento na data escolhida ou hoje se não escolher
+  const dataAtual = dataEl.value ? dataEl.value : new Date().toISOString().split('T')[0];
 
   lancamentos.push({
     clienteId: clienteSelecionado.id,
@@ -127,12 +133,13 @@ function lancar(){
     desc: descEl.value,
     nota: notaEl.value,
     tipo: tipoEl.value,
-    data: new Date().toLocaleDateString('pt-BR')
+    data: dataAtual
   });
 
   valorEl.value = '';
   descEl.value = '';
   notaEl.value = '';
+  dataEl.value = ''; // limpa input
 
   salvar();
   atualizar();
@@ -151,10 +158,14 @@ function atualizar(){
       if(l.tipo === 'entrada') entradas += l.valor;
       else saidas += l.valor;
 
+      // Formata data para dd/mm/yyyy
+      const [ano, mes, dia] = l.data.split('-');
+      const dataFormatada = `${dia}/${mes}/${ano}`;
+
       hist.innerHTML += `
         <div class="${l.tipo}">
           ${l.tipo === 'entrada' ? '+' : '-'} R$ ${l.valor.toFixed(2)} - ${l.desc}
-          <br><small>${l.nota} | ${l.data}</small>
+          <br><small>${l.nota} | ${dataFormatada}</small>
         </div>`;
     });
 
@@ -180,22 +191,27 @@ function deletarCliente(){
 function imprimirMes(){
   if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
 
-  const hoje = new Date();
-  const mes = String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
+  const inputData = document.getElementById('dataEscolhida').value;
+  let dataFiltro = inputData ? inputData : new Date().toISOString().split('T')[0];
+
+  // Formata para exibir no relatório
+  const [ano, mes, dia] = dataFiltro.split('-');
+  const dataFormatada = `${dia}/${mes}/${ano}`;
 
   document.getElementById('clientePrint').innerText = clienteSelecionado.nome;
-  document.getElementById('mesPrint').innerText = mes;
+  document.getElementById('mesPrint').innerText = dataFormatada;
 
   const histPrint = document.getElementById('historicoPrint');
   histPrint.innerHTML = '';
 
+  // Filtra lançamentos pelo mesmo formato yyyy-mm-dd
   lancamentos
-    .filter(l => l.clienteId === clienteSelecionado.id && l.data.includes(mes))
+    .filter(l => l.clienteId === clienteSelecionado.id && l.data === dataFiltro)
     .forEach(l => {
       histPrint.innerHTML += `
         <div>
           ${l.tipo === 'entrada' ? '+' : '-'} R$ ${l.valor.toFixed(2)} - ${l.desc}
-          <br><small>${l.nota} | ${l.data}</small>
+          <br><small>${l.nota} | ${dataFormatada}</small>
         </div>`;
     });
 

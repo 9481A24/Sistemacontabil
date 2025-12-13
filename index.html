@@ -5,36 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contabilidade por Cliente</title>
 <style>
-body{font-family:Arial;background:#f4f4f4;margin:0;padding:10px}
-h1{text-align:center}
-.card{background:#fff;padding:10px;margin-bottom:10px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-input,select,button{width:100%;padding:8px;margin:5px 0;border-radius:5px;border:1px solid #ccc}
-button{background:#111;color:#fff;font-weight:bold}
+html,body{margin:0;padding:0;width:100%;height:100%;font-family:Arial;background:#f2f2f2}
+.container{padding:12px}
+.card{background:#fff;border-radius:8px;padding:10px;margin-bottom:12px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
+input,select,button{width:100%;padding:8px;margin-top:6px}
+button{background:#111;color:#fff;border:none;border-radius:6px}
 button.red{background:#c62828}
 button.gray{background:#555}
-.cliente{padding:6px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.cliente{padding:6px;border-bottom:1px solid #eee;cursor:pointer}
 .entrada{color:green}
 .saida{color:red}
-.alerta{background:#111;color:#fff;padding:8px;border-radius:6px}
 small{color:#555}
+#relatorioPrint{display:none}
 @media print{
-  body * { display: none !important; }
-  #relatorioPrint, #relatorioPrint * { display: block !important; }
-  #relatorioPrint { width:100%; }
-}
-  #relatorioPrint, #relatorioPrint * { visibility: visible; }
-  #relatorioPrint { position: absolute; left: 0; top: 0; width: 100%; }
-}
-  body{background:#fff}
+  body *{display:none}
+  #relatorioPrint{display:block}
 }
 </style>
 </head>
 <body>
+<div class="container">
 
-<h1>📊 Contabilidade por Cliente</h1>
+<h2>📊 Contabilidade por Cliente</h2>
 
 <div class="card">
-<h3>👤 Cadastrar Cliente</h3>
+<h3>👤 Cliente</h3>
 <input id="nomeCliente" placeholder="Nome do cliente">
 <button onclick="addCliente()">Salvar Cliente</button>
 </div>
@@ -45,9 +40,9 @@ small{color:#555}
 </div>
 
 <div class="card">
-<h3>💼 Cliente Selecionado: <span id="clienteAtual">Nenhum</span></h3>
+<h3>💼 Cliente Selecionado:</h3>
+<p style="font-size:18px;font-weight:bold;color:#111" id="clienteAtual">Nenhum</p>
 <p>Saldo: R$ <span id="saldoCliente">0</span></p>
-
 <input id="valor" type="number" placeholder="Valor">
 <input id="desc" placeholder="Descrição">
 <input id="nota" placeholder="Nota / Observação">
@@ -56,20 +51,24 @@ small{color:#555}
 <option value="saida">Saída</option>
 </select>
 <button onclick="lancar()">Lançar</button>
-<button class="gray" onclick="imprimirMes()">🖨 Imprimir Mês Atual</button>
-<button class="red" onclick="deletarCliente()">🗑 Deletar Cliente</button>
+<button class="gray" onclick="imprimirMes()">Imprimir Mês</button>
+<button class="red" onclick="deletarCliente()">Deletar Cliente</button>
 </div>
 
-<div class="card" id="relatorioPrint">
-<h2>📄 Relatório Mensal</h2>
-<p><strong>Cliente:</strong> <span id="clientePrint"></span></p>
-<p><strong>Mês:</strong> <span id="mesPrint"></span></p>
-<hr>
-<h3>📜 Histórico do Cliente</h3>
+<div class="card">
+<h3>📜 Histórico</h3>
 <div id="historico"></div>
 </div>
+</div>
 
-<div class="alerta" id="alertaIA"></div>
+<!-- RELATÓRIO -->
+<div id="relatorioPrint">
+<h2>Relatório Mensal</h2>
+<p><b>Cliente:</b> <span id="clientePrint"></span></p>
+<p><b>Mês:</b> <span id="mesPrint"></span></p>
+<hr>
+<div id="historicoPrint"></div>
+</div>
 
 <script>
 let clientes = JSON.parse(localStorage.getItem('clientes')) || [];
@@ -82,120 +81,128 @@ function salvar(){
 }
 
 function addCliente(){
-  const nome = nomeCliente.value.trim();
-  if(!nome) return alert('Informe o nome');
+  const input = document.getElementById('nomeCliente');
+  const nome = input.value.trim();
+  if(!nome){ alert('Digite o nome do cliente'); return; }
+
   clientes.push({ id: Date.now(), nome });
-  nomeCliente.value='';
+  input.value = '';
   salvar();
   listarClientes();
 }
 
 function listarClientes(){
   const lista = document.getElementById('listaClientes');
-  lista.innerHTML='';
-  clientes.forEach(c=>{
+  lista.innerHTML = '';
+
+  clientes.forEach(c => {
     const d = document.createElement('div');
-    d.className='cliente';
-    d.innerHTML = `<span>${c.nome}</span>`;
-    d.onclick=()=>selecionarCliente(c);
+    d.className = 'cliente';
+    d.textContent = c.nome;
+    d.onclick = () => selecionarCliente(c);
     lista.appendChild(d);
   });
 }
 
 function selecionarCliente(c){
-  clienteSelecionado=c;
-  clienteAtual.innerText=c.nome;
-  atualizarCliente();
+  clienteSelecionado = c;
+  document.getElementById('clienteAtual').innerText = c.nome;
+  atualizar();
 }
 
 function lancar(){
-  if(!clienteSelecionado) return alert('Selecione um cliente');
-  const valor = Number(document.getElementById('valor').value);
-  const desc = document.getElementById('desc').value;
-  const nota = document.getElementById('nota').value;
-  const tipo = document.getElementById('tipo').value;
-  if(!valor) return alert('Informe o valor');
-  lancamentos.push({clienteId:clienteSelecionado.id,valor,desc,nota,tipo,data:new Date().toLocaleDateString()});
-  document.getElementById('valor').value='';
-  document.getElementById('desc').value='';
-  document.getElementById('nota').value='';
+  if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
+
+  const valorEl = document.getElementById('valor');
+  const descEl  = document.getElementById('desc');
+  const notaEl  = document.getElementById('nota');
+  const tipoEl  = document.getElementById('tipo');
+
+  const valor = Number(valorEl.value);
+  if(valor <= 0){ alert('Informe um valor válido'); return; }
+
+  lancamentos.push({
+    clienteId: clienteSelecionado.id,
+    valor: valor,
+    desc: descEl.value,
+    nota: notaEl.value,
+    tipo: tipoEl.value,
+    data: new Date().toLocaleDateString('pt-BR')
+  });
+
+  valorEl.value = '';
+  descEl.value = '';
+  notaEl.value = '';
+
   salvar();
-  atualizarCliente();
+  atualizar();
 }
 
-function atualizarCliente(){
-  const hist=document.getElementById('historico');
-  hist.innerHTML='';
-  let entradas=0,saidas=0;
-  lancamentos.filter(l=>l.clienteId===clienteSelecionado.id).forEach(l=>{
-    if(l.tipo==='entrada') entradas+=l.valor; else saidas+=l.valor;
-    hist.innerHTML+=`<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota||'sem nota'} | ${l.data}</small></div>`;
-  });
-  const saldo=entradas-saidas;
-  saldoCliente.innerText=saldo.toFixed(2);
-  IA(saldo,entradas,saidas);
+function atualizar(){
+  const hist = document.getElementById('historico');
+  hist.innerHTML = '';
+
+  let entradas = 0;
+  let saidas = 0;
+
+  lancamentos
+    .filter(l => l.clienteId === clienteSelecionado.id)
+    .forEach(l => {
+      if(l.tipo === 'entrada') entradas += l.valor;
+      else saidas += l.valor;
+
+      hist.innerHTML += `
+        <div class="${l.tipo}">
+          ${l.tipo === 'entrada' ? '+' : '-'} R$ ${l.valor.toFixed(2)} - ${l.desc}
+          <br><small>${l.nota} | ${l.data}</small>
+        </div>`;
+    });
+
+  document.getElementById('saldoCliente').innerText = (entradas - saidas).toFixed(2);
 }
 
 function deletarCliente(){
   if(!clienteSelecionado) return;
-  if(!confirm('Deseja deletar este cliente e TODOS os lançamentos?')) return;
-  clientes = clientes.filter(c=>c.id!==clienteSelecionado.id);
-  lancamentos = lancamentos.filter(l=>l.clienteId!==clienteSelecionado.id);
-  clienteSelecionado=null;
-  clienteAtual.innerText='Nenhum';
-  historico.innerHTML='';
-  saldoCliente.innerText='0';
+  if(!confirm('Excluir cliente e todos os lançamentos?')) return;
+
+  clientes = clientes.filter(c => c.id !== clienteSelecionado.id);
+  lancamentos = lancamentos.filter(l => l.clienteId !== clienteSelecionado.id);
+
+  clienteSelecionado = null;
+  document.getElementById('clienteAtual').innerText = 'Nenhum';
+  document.getElementById('historico').innerHTML = '';
+  document.getElementById('saldoCliente').innerText = '0';
+
   salvar();
   listarClientes();
 }
 
 function imprimirMes(){
-  if(!clienteSelecionado) return alert('Selecione um cliente');
-
-  document.getElementById('clientePrint').innerText = clienteSelecionado.nome;
+  if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
 
   const hoje = new Date();
-  const mes = String(hoje.getMonth()+1).padStart(2,'0');
-  const ano = hoje.getFullYear();
-  const mesAno = mes + '/' + ano;
-  document.getElementById('mesPrint').innerText = mesAno;
+  const mes = String(hoje.getMonth()+1).padStart(2,'0') + '/' + hoje.getFullYear();
 
-  const hist = document.getElementById('historico');
-  hist.innerHTML = '';
+  document.getElementById('clientePrint').innerText = clienteSelecionado.nome;
+  document.getElementById('mesPrint').innerText = mes;
+
+  const histPrint = document.getElementById('historicoPrint');
+  histPrint.innerHTML = '';
 
   lancamentos
-    .filter(l => l.clienteId === clienteSelecionado.id && l.data.includes(mesAno))
+    .filter(l => l.clienteId === clienteSelecionado.id && l.data.includes(mes))
     .forEach(l => {
-      hist.innerHTML += `<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota || ''} | ${l.data}</small></div>`;
+      histPrint.innerHTML += `
+        <div>
+          ${l.tipo === 'entrada' ? '+' : '-'} R$ ${l.valor.toFixed(2)} - ${l.desc}
+          <br><small>${l.nota} | ${l.data}</small>
+        </div>`;
     });
 
-  setTimeout(() => window.print(), 300);
-}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota||''} | ${l.data}</small></div>`;
-  });
   window.print();
-  atualizarCliente();
-}(){
-  if(!clienteSelecionado) return;
-  const mesAtual = new Date().toLocaleDateString().slice(3);
-  const hist=document.getElementById('historico');
-  hist.innerHTML='';
-  lancamentos.filter(l=>l.clienteId===clienteSelecionado.id && l.data.includes(mesAtual))
-  .forEach(l=>{
-    hist.innerHTML+=`<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota||''} | ${l.data}</small></div>`;
-  });
-  window.print();
-  atualizarCliente();
-}
-
-function IA(saldo,entradas,saidas){
-  const box=document.getElementById('alertaIA');
-  if(saldo<0) box.innerText='🚨 Cliente dando prejuízo';
-  else if(saidas>entradas*0.6) box.innerText='⚠️ Gastos altos para esse cliente';
-  else box.innerText='✅ Cliente saudável financeiramente';
 }
 
 listarClientes();
 </script>
-
 </body>
 </html>

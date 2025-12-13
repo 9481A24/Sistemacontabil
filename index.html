@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contabilidade por Cliente</title>
+<style>
+body{font-family:Arial;background:#f4f4f4;margin:0;padding:10px}
+h1{text-align:center}
+.card{background:#fff;padding:10px;margin-bottom:10px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+input,select,button{width:100%;padding:8px;margin:5px 0;border-radius:5px;border:1px solid #ccc}
+button{background:#111;color:#fff;font-weight:bold}
+button.red{background:#c62828}
+button.gray{background:#555}
+.cliente{padding:6px;border-bottom:1px solid #eee;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.entrada{color:green}
+.saida{color:red}
+.alerta{background:#111;color:#fff;padding:8px;border-radius:6px}
+small{color:#555}
+@media print{
+  body * { display: none !important; }
+  #relatorioPrint, #relatorioPrint * { display: block !important; }
+  #relatorioPrint { width:100%; }
+}
+  #relatorioPrint, #relatorioPrint * { visibility: visible; }
+  #relatorioPrint { position: absolute; left: 0; top: 0; width: 100%; }
+}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<h1>📊 Contabilidade por Cliente</h1>
+
+<div class="card">
+<h3>👤 Cadastrar Cliente</h3>
+<input id="nomeCliente" placeholder="Nome do cliente">
+<button onclick="addCliente()">Salvar Cliente</button>
+</div>
+
+<div class="card">
+<h3>📋 Clientes</h3>
+<div id="listaClientes"></div>
+</div>
+
+<div class="card">
+<h3>💼 Cliente Selecionado: <span id="clienteAtual">Nenhum</span></h3>
+<p>Saldo: R$ <span id="saldoCliente">0</span></p>
+
+<input id="valor" type="number" placeholder="Valor">
+<input id="desc" placeholder="Descrição">
+<input id="nota" placeholder="Nota / Observação">
+<select id="tipo">
+<option value="entrada">Entrada</option>
+<option value="saida">Saída</option>
+</select>
+<button onclick="lancar()">Lançar</button>
+<button class="gray" onclick="imprimirMes()">🖨 Imprimir Mês Atual</button>
+<button class="red" onclick="deletarCliente()">🗑 Deletar Cliente</button>
+</div>
+
+<div class="card" id="relatorioPrint">
+<h2>📄 Relatório Mensal</h2>
+<p><strong>Cliente:</strong> <span id="clientePrint"></span></p>
+<p><strong>Mês:</strong> <span id="mesPrint"></span></p>
+<hr>
+<h3>📜 Histórico do Cliente</h3>
+<div id="historico"></div>
+</div>
+
+<div class="alerta" id="alertaIA"></div>
+
+<script>
+let clientes = JSON.parse(localStorage.getItem('clientes')) || [];
+let lancamentos = JSON.parse(localStorage.getItem('lancamentos')) || [];
+let clienteSelecionado = null;
+
+function salvar(){
+  localStorage.setItem('clientes', JSON.stringify(clientes));
+  localStorage.setItem('lancamentos', JSON.stringify(lancamentos));
+}
+
+function addCliente(){
+  const nome = nomeCliente.value.trim();
+  if(!nome) return alert('Informe o nome');
+  clientes.push({ id: Date.now(), nome });
+  nomeCliente.value='';
+  salvar();
+  listarClientes();
+}
+
+function listarClientes(){
+  const lista = document.getElementById('listaClientes');
+  lista.innerHTML='';
+  clientes.forEach(c=>{
+    const d = document.createElement('div');
+    d.className='cliente';
+    d.innerHTML = `<span>${c.nome}</span>`;
+    d.onclick=()=>selecionarCliente(c);
+    lista.appendChild(d);
+  });
+}
+
+function selecionarCliente(c){
+  clienteSelecionado=c;
+  clienteAtual.innerText=c.nome;
+  atualizarCliente();
+}
+
+function lancar(){
+  if(!clienteSelecionado) return alert('Selecione um cliente');
+  const valor = Number(document.getElementById('valor').value);
+  const desc = document.getElementById('desc').value;
+  const nota = document.getElementById('nota').value;
+  const tipo = document.getElementById('tipo').value;
+  if(!valor) return alert('Informe o valor');
+  lancamentos.push({clienteId:clienteSelecionado.id,valor,desc,nota,tipo,data:new Date().toLocaleDateString()});
+  document.getElementById('valor').value='';
+  document.getElementById('desc').value='';
+  document.getElementById('nota').value='';
+  salvar();
+  atualizarCliente();
+}
+
+function atualizarCliente(){
+  const hist=document.getElementById('historico');
+  hist.innerHTML='';
+  let entradas=0,saidas=0;
+  lancamentos.filter(l=>l.clienteId===clienteSelecionado.id).forEach(l=>{
+    if(l.tipo==='entrada') entradas+=l.valor; else saidas+=l.valor;
+    hist.innerHTML+=`<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota||'sem nota'} | ${l.data}</small></div>`;
+  });
+  const saldo=entradas-saidas;
+  saldoCliente.innerText=saldo.toFixed(2);
+  IA(saldo,entradas,saidas);
+}
+
+function deletarCliente(){
+  if(!clienteSelecionado) return;
+  if(!confirm('Deseja deletar este cliente e TODOS os lançamentos?')) return;
+  clientes = clientes.filter(c=>c.id!==clienteSelecionado.id);
+  lancamentos = lancamentos.filter(l=>l.clienteId!==clienteSelecionado.id);
+  clienteSelecionado=null;
+  clienteAtual.innerText='Nenhum';
+  historico.innerHTML='';
+  saldoCliente.innerText='0';
+  salvar();
+  listarClientes();
+}
+
+function imprimirMes(){
+  if(!clienteSelecionado) return alert('Selecione um cliente');
+
+  document.getElementById('clientePrint').innerText = clienteSelecionado.nome;
+
+  const hoje = new Date();
+  const mes = String(hoje.getMonth()+1).padStart(2,'0');
+  const ano = hoje.getFullYear();
+  const mesAno = mes + '/' + ano;
+  document.getElementById('mesPrint').innerText = mesAno;
+
+  const hist = document.getElementById('historico');
+  hist.innerHTML = '';
+
+  lancamentos
+    .filter(l => l.clienteId === clienteSelecionado.id && l.data.includes(mesAno))
+    .forEach(l => {
+      hist.innerHTML += `<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota || ''} | ${l.data}</small></div>`;
+    });
+
+  setTimeout(() => window.print(), 300);
+}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota||''} | ${l.data}</small></div>`;
+  });
+  window.print();
+  atualizarCliente();
+}(){
+  if(!clienteSelecionado) return;
+  const mesAtual = new Date().toLocaleDateString().slice(3);
+  const hist=document.getElementById('historico');
+  hist.innerHTML='';
+  lancamentos.filter(l=>l.clienteId===clienteSelecionado.id && l.data.includes(mesAtual))
+  .forEach(l=>{
+    hist.innerHTML+=`<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor} – ${l.desc}<br><small>📝 ${l.nota||''} | ${l.data}</small></div>`;
+  });
+  window.print();
+  atualizarCliente();
+}
+
+function IA(saldo,entradas,saidas){
+  const box=document.getElementById('alertaIA');
+  if(saldo<0) box.innerText='🚨 Cliente dando prejuízo';
+  else if(saidas>entradas*0.6) box.innerText='⚠️ Gastos altos para esse cliente';
+  else box.innerText='✅ Cliente saudável financeiramente';
+}
+
+listarClientes();
+</script>
+
+</body>
+</html>

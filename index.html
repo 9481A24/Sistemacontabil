@@ -8,7 +8,7 @@
 html,body{margin:0;padding:0;width:100%;height:100%;font-family:Arial;background:#f2f2f2}
 .container{padding:12px}
 .card{background:#fff;border-radius:8px;padding:10px;margin-bottom:12px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-input,select,button{width:100%;padding:8px;margin-top:6px}
+input,select,button,label{width:100%;padding:8px;margin-top:6px}
 button{background:#111;color:#fff;border:none;border-radius:6px}
 button.red{background:#c62828}
 button.gray{background:#555}
@@ -16,10 +16,11 @@ button.gray{background:#555}
 .entrada{color:green}
 .saida{color:red}
 small{color:#555}
-#relatorioPrint{display:none}
+#relatorioPrint{visibility:hidden;position:absolute;top:0;left:0;width:100%;background:#fff;padding:12px;}
 @media print{
-  body *{display:none}
-  #relatorioPrint{display:block}
+  body *{visibility:hidden;}
+  #relatorioPrint, #relatorioPrint *{visibility:visible;}
+  #relatorioPrint{position:static;width:100%;}
 }
 </style>
 </head>
@@ -50,10 +51,15 @@ small{color:#555}
 <option value="entrada">Entrada</option>
 <option value="saida">Saída</option>
 </select>
-<!-- Input de data para lançar na data escolhida -->
-<input id="dataEscolhida" type="date" placeholder="Escolha dia/mês/ano">
+
+<label for="dataEscolhida">Escolher dia específico:</label>
+<input id="dataEscolhida" type="date" style="margin-bottom:6px;">
+
+<label for="mesEscolhido">Escolher mês:</label>
+<input id="mesEscolhido" type="month" style="margin-bottom:6px;">
+
 <button onclick="lancar()">Lançar</button>
-<button class="gray" onclick="imprimirMes()">Imprimir Relatório</button>
+<button class="gray" onclick="imprimirRelatorio()">Imprimir Relatório</button>
 <button class="red" onclick="deletarCliente()">Deletar Cliente</button>
 </div>
 
@@ -63,11 +69,10 @@ small{color:#555}
 </div>
 </div>
 
-<!-- RELATÓRIO -->
 <div id="relatorioPrint">
 <h2>Relatório</h2>
 <p><b>Cliente:</b> <span id="clientePrint"></span></p>
-<p><b>Data:</b> <span id="mesPrint"></span></p>
+<p><b>Período:</b> <span id="dataPrint"></span></p>
 <hr>
 <div id="historicoPrint"></div>
 </div>
@@ -86,7 +91,6 @@ function addCliente(){
   const input = document.getElementById('nomeCliente');
   const nome = input.value.trim();
   if(!nome){ alert('Digite o nome do cliente'); return; }
-
   clientes.push({ id: Date.now(), nome });
   input.value = '';
   salvar();
@@ -96,7 +100,6 @@ function addCliente(){
 function listarClientes(){
   const lista = document.getElementById('listaClientes');
   lista.innerHTML = '';
-
   clientes.forEach(c => {
     const d = document.createElement('div');
     d.className = 'cliente';
@@ -114,7 +117,6 @@ function selecionarCliente(c){
 
 function lancar(){
   if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
-
   const valorEl = document.getElementById('valor');
   const descEl  = document.getElementById('desc');
   const notaEl  = document.getElementById('nota');
@@ -123,8 +125,6 @@ function lancar(){
 
   const valor = Number(valorEl.value);
   if(valor <= 0){ alert('Informe um valor válido'); return; }
-
-  // Salva o lançamento na data escolhida ou hoje se não escolher
   const dataAtual = dataEl.value ? dataEl.value : new Date().toISOString().split('T')[0];
 
   lancamentos.push({
@@ -139,7 +139,6 @@ function lancar(){
   valorEl.value = '';
   descEl.value = '';
   notaEl.value = '';
-  dataEl.value = ''; // limpa input
 
   salvar();
   atualizar();
@@ -148,72 +147,68 @@ function lancar(){
 function atualizar(){
   const hist = document.getElementById('historico');
   hist.innerHTML = '';
+  let entradas=0, saidas=0;
 
-  let entradas = 0;
-  let saidas = 0;
-
-  lancamentos
-    .filter(l => l.clienteId === clienteSelecionado.id)
-    .forEach(l => {
-      if(l.tipo === 'entrada') entradas += l.valor;
-      else saidas += l.valor;
-
-      // Formata data para dd/mm/yyyy
-      const [ano, mes, dia] = l.data.split('-');
-      const dataFormatada = `${dia}/${mes}/${ano}`;
-
-      hist.innerHTML += `
-        <div class="${l.tipo}">
-          ${l.tipo === 'entrada' ? '+' : '-'} R$ ${l.valor.toFixed(2)} - ${l.desc}
-          <br><small>${l.nota} | ${dataFormatada}</small>
-        </div>`;
+  lancamentos.filter(l=>l.clienteId===clienteSelecionado.id)
+    .forEach(l=>{
+      if(l.tipo==='entrada') entradas+=l.valor; else saidas+=l.valor;
+      const [ano,mes,dia]=l.data.split('-');
+      const dataFormatada=`${dia}/${mes}/${ano}`;
+      hist.innerHTML+=`<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor.toFixed(2)} - ${l.desc}<br><small>${l.nota} | ${dataFormatada}</small></div>`;
     });
 
-  document.getElementById('saldoCliente').innerText = (entradas - saidas).toFixed(2);
+  document.getElementById('saldoCliente').innerText=(entradas-saidas).toFixed(2);
 }
 
 function deletarCliente(){
   if(!clienteSelecionado) return;
   if(!confirm('Excluir cliente e todos os lançamentos?')) return;
-
-  clientes = clientes.filter(c => c.id !== clienteSelecionado.id);
-  lancamentos = lancamentos.filter(l => l.clienteId !== clienteSelecionado.id);
-
-  clienteSelecionado = null;
-  document.getElementById('clienteAtual').innerText = 'Nenhum';
-  document.getElementById('historico').innerHTML = '';
-  document.getElementById('saldoCliente').innerText = '0';
-
+  clientes = clientes.filter(c=>c.id!==clienteSelecionado.id);
+  lancamentos = lancamentos.filter(l=>l.clienteId!==clienteSelecionado.id);
+  clienteSelecionado=null;
+  document.getElementById('clienteAtual').innerText='Nenhum';
+  document.getElementById('historico').innerHTML='';
+  document.getElementById('saldoCliente').innerText='0';
   salvar();
   listarClientes();
 }
 
-function imprimirMes(){
+function imprimirRelatorio(){
   if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
 
-  const inputData = document.getElementById('dataEscolhida').value;
-  let dataFiltro = inputData ? inputData : new Date().toISOString().split('T')[0];
+  const dataEl = document.getElementById('dataEscolhida').value;
+  const mesEl  = document.getElementById('mesEscolhido').value;
 
-  // Formata para exibir no relatório
-  const [ano, mes, dia] = dataFiltro.split('-');
-  const dataFormatada = `${dia}/${mes}/${ano}`;
+  let dataFormatada='';
+  let lancsFiltrados=[];
 
-  document.getElementById('clientePrint').innerText = clienteSelecionado.nome;
-  document.getElementById('mesPrint').innerText = dataFormatada;
-
-  const histPrint = document.getElementById('historicoPrint');
-  histPrint.innerHTML = '';
-
-  // Filtra lançamentos pelo mesmo formato yyyy-mm-dd
-  lancamentos
-    .filter(l => l.clienteId === clienteSelecionado.id && l.data === dataFiltro)
-    .forEach(l => {
-      histPrint.innerHTML += `
-        <div>
-          ${l.tipo === 'entrada' ? '+' : '-'} R$ ${l.valor.toFixed(2)} - ${l.desc}
-          <br><small>${l.nota} | ${dataFormatada}</small>
-        </div>`;
+  if(dataEl){ // Prioriza data específica
+    const [ano,mes,dia]=dataEl.split('-');
+    dataFormatada=`Dia: ${dia}/${mes}/${ano}`;
+    lancsFiltrados=lancamentos.filter(l=>l.clienteId===clienteSelecionado.id && l.data===dataEl);
+  } else if(mesEl){ // Se não tiver data, imprime mês
+    const [ano,mes]=mesEl.split('-');
+    dataFormatada=`Mês: ${mes}/${ano}`;
+    lancsFiltrados=lancamentos.filter(l=>{
+      const [lAno,lMes]=l.data.split('-');
+      return l.clienteId===clienteSelecionado.id && lAno===ano && lMes===mes;
     });
+  } else{
+    alert('Escolha uma data ou um mês para imprimir'); 
+    return;
+  }
+
+  document.getElementById('clientePrint').innerText=clienteSelecionado.nome;
+  document.getElementById('dataPrint').innerText=dataFormatada;
+
+  const histPrint=document.getElementById('historicoPrint');
+  histPrint.innerHTML='';
+  if(lancsFiltrados.length===0) histPrint.innerHTML='<p>Nenhum lançamento neste período.</p>';
+  else lancsFiltrados.forEach(l=>{
+    const [lAno,lMes,lDia]=l.data.split('-');
+    const dataFmt=`${lDia}/${lMes}/${lAno}`;
+    histPrint.innerHTML+=`<div>${l.tipo==='entrada'?'+':'-'} R$ ${l.valor.toFixed(2)} - ${l.desc}<br><small>${l.nota} | ${dataFmt}</small></div>`;
+  });
 
   window.print();
 }
@@ -222,3 +217,4 @@ listarClientes();
 </script>
 </body>
 </html>
+

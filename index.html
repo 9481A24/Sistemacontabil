@@ -3,218 +3,282 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contabilidade por Cliente</title>
+<title>Sistema Contabilidade</title>
 <style>
-html,body{margin:0;padding:0;width:100%;height:100%;font-family:Arial;background:#f2f2f2}
-.container{padding:12px}
-.card{background:#fff;border-radius:8px;padding:10px;margin-bottom:12px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-input,select,button,label{width:100%;padding:8px;margin-top:6px}
-button{background:#111;color:#fff;border:none;border-radius:6px}
-button.red{background:#c62828}
-button.gray{background:#555}
-.cliente{padding:6px;border-bottom:1px solid #eee;cursor:pointer}
-.entrada{color:green}
-.saida{color:red}
-small{color:#555}
-#relatorioPrint{visibility:hidden;position:absolute;top:0;left:0;width:100%;background:#fff;padding:12px;}
-@media print{
-  body *{visibility:hidden;}
-  #relatorioPrint, #relatorioPrint *{visibility:visible;}
-  #relatorioPrint{position:static;width:100%;}
+body { font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px; }
+h1,h2 { margin-top: 20px; }
+input, select, button { padding: 6px; margin: 4px 0; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+table, th, td { border: 1px solid #333; }
+th, td { padding: 8px; text-align: center; }
+th { background: #555; color: #fff; }
+tr.entrada { background: #d4f8d4; }
+tr.saida { background: #f8d4d4; }
+
+/* Menu de abas */
+.tabs { display: flex; margin-bottom: 10px; }
+.tab { padding: 10px 20px; cursor: pointer; background: #ddd; margin-right: 2px; border-radius: 5px 5px 0 0; }
+.tab.active { background: #555; color: #fff; }
+.tabContent { display: none; padding: 10px; background: #fff; border-radius: 0 5px 5px 5px; }
+
+/* Lista de clientes vertical */
+#listaClientes button { display: block; width: 100%; margin: 3px 0; padding: 6px; text-align: left; }
+
+@media print {
+  body { background: #fff; }
+  .tabs, input, select, button { display: none; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
 }
 </style>
 </head>
 <body>
-<div class="container">
 
-<h2>📊 Contabilidade por Cliente</h2>
+<h1>Sistema de Contabilidade</h1>
 
-<div class="card">
-<h3>👤 Cliente</h3>
-<input id="nomeCliente" placeholder="Nome do cliente">
-<button onclick="addCliente()">Salvar Cliente</button>
+<!-- Menu de abas -->
+<div class="tabs">
+  <div class="tab active" onclick="abrirAba('cadastro')">Cadastro Cliente</div>
+  <div class="tab" onclick="abrirAba('lista')">Lista de Clientes</div>
+  <div class="tab" onclick="abrirAba('movimentacoes')">Movimentações / Relatório</div>
 </div>
 
-<div class="card">
-<h3>📋 Clientes</h3>
-<div id="listaClientes"></div>
+<!-- Aba Cadastro -->
+<div id="cadastro" class="tabContent" style="display:block;">
+  <h2>Cadastro de Cliente</h2>
+  <input type="text" id="clienteNome" placeholder="Nome do cliente" onblur="preencherInteligente()"><br>
+  <input type="text" id="clienteCpfCnpj" placeholder="CPF / CNPJ"><br>
+  <input type="text" id="clienteEndereco" placeholder="Endereço"><br>
+  <input type="text" id="clienteTelefone" placeholder="Telefone"><br>
+  <button onclick="adicionarCliente()">Adicionar Cliente</button>
 </div>
 
-<div class="card">
-<h3>💼 Cliente Selecionado:</h3>
-<p style="font-size:18px;font-weight:bold;color:#111" id="clienteAtual">Nenhum</p>
-<p>Saldo: R$ <span id="saldoCliente">0</span></p>
-<input id="valor" type="number" placeholder="Valor">
-<input id="desc" placeholder="Descrição">
-<input id="nota" placeholder="Nota / Observação">
-<select id="tipo">
-<option value="entrada">Entrada</option>
-<option value="saida">Saída</option>
-</select>
-
-<label for="dataEscolhida">Escolher dia específico:</label>
-<input id="dataEscolhida" type="date" style="margin-bottom:6px;">
-
-<label for="mesEscolhido">Escolher mês:</label>
-<input id="mesEscolhido" type="month" style="margin-bottom:6px;">
-
-<button onclick="lancar()">Lançar</button>
-<button class="gray" onclick="imprimirRelatorio()">Imprimir Relatório</button>
-<button class="red" onclick="deletarCliente()">Deletar Cliente</button>
+<!-- Aba Lista -->
+<div id="lista" class="tabContent">
+  <h2>Lista de Clientes</h2>
+  <div id="listaClientes"></div>
+  <button onclick="excluirCliente()">Excluir Cliente Selecionado</button>
 </div>
 
-<div class="card">
-<h3>📜 Histórico</h3>
-<div id="historico"></div>
-</div>
-</div>
+<!-- Aba Movimentações -->
+<div id="movimentacoes" class="tabContent">
+  <h2>Lançamento de Movimentação</h2>
+  <select id="clientesSelect"></select><br>
+  <label>Data: <input type="date" id="movData"></label><br>
+  <label>Descrição: <input type="text" id="movDescricao"></label><br>
+  <label>Tipo:
+    <select id="movTipo">
+      <option value="entrada">Entrada</option>
+      <option value="saida">Saída</option>
+    </select>
+  </label><br>
+  <label>Valor: <input type="number" id="movValor"></label><br>
+  <button onclick="adicionarMovimentacao()">Adicionar Movimentação</button>
 
-<div id="relatorioPrint">
-<h2>Relatório</h2>
-<p><b>Cliente:</b> <span id="clientePrint"></span></p>
-<p><b>Período:</b> <span id="dataPrint"></span></p>
-<hr>
-<div id="historicoPrint"></div>
+  <h2>Movimentações do Cliente</h2>
+  <div id="relatorioCliente">
+    <h3 id="relClienteNome"></h3>
+    <h4 id="relPeriodo"></h4>
+    <table id="relatorioTable">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Descrição</th>
+          <th>Entrada (R$)</th>
+          <th>Saída (R$)</th>
+          <th>Saldo (R$)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <h4 id="resumoFinal"></h4>
+  </div>
+
+  <button onclick="imprimirRelatorio()">Imprimir / PDF</button>
+  <button onclick="enviarWhatsApp()">Enviar WhatsApp</button>
 </div>
 
 <script>
-let clientes = JSON.parse(localStorage.getItem('clientes')) || [];
-let lancamentos = JSON.parse(localStorage.getItem('lancamentos')) || [];
+let clientes = [];
+let movimentacoes = {};
 let clienteSelecionado = null;
 
-function salvar(){
-  localStorage.setItem('clientes', JSON.stringify(clientes));
-  localStorage.setItem('lancamentos', JSON.stringify(lancamentos));
+// Funções de abas
+function abrirAba(aba) {
+  document.querySelectorAll('.tabContent').forEach(div => div.style.display='none');
+  document.getElementById(aba).style.display='block';
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelector(`.tab[onclick="abrirAba('${aba}')"]`).classList.add('active');
 }
 
-function addCliente(){
-  const input = document.getElementById('nomeCliente');
-  const nome = input.value.trim();
-  if(!nome){ alert('Digite o nome do cliente'); return; }
-  clientes.push({ id: Date.now(), nome });
-  input.value = '';
-  salvar();
-  listarClientes();
-}
-
-function listarClientes(){
-  const lista = document.getElementById('listaClientes');
-  lista.innerHTML = '';
-  clientes.forEach(c => {
-    const d = document.createElement('div');
-    d.className = 'cliente';
-    d.textContent = c.nome;
-    d.onclick = () => selecionarCliente(c);
-    lista.appendChild(d);
-  });
-}
-
-function selecionarCliente(c){
-  clienteSelecionado = c;
-  document.getElementById('clienteAtual').innerText = c.nome;
-  atualizar();
-}
-
-function lancar(){
-  if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
-  const valorEl = document.getElementById('valor');
-  const descEl  = document.getElementById('desc');
-  const notaEl  = document.getElementById('nota');
-  const tipoEl  = document.getElementById('tipo');
-  const dataEl  = document.getElementById('dataEscolhida');
-
-  const valor = Number(valorEl.value);
-  if(valor <= 0){ alert('Informe um valor válido'); return; }
-  const dataAtual = dataEl.value ? dataEl.value : new Date().toISOString().split('T')[0];
-
-  lancamentos.push({
-    clienteId: clienteSelecionado.id,
-    valor: valor,
-    desc: descEl.value,
-    nota: notaEl.value,
-    tipo: tipoEl.value,
-    data: dataAtual
-  });
-
-  valorEl.value = '';
-  descEl.value = '';
-  notaEl.value = '';
-
-  salvar();
-  atualizar();
-}
-
-function atualizar(){
-  const hist = document.getElementById('historico');
-  hist.innerHTML = '';
-  let entradas=0, saidas=0;
-
-  lancamentos.filter(l=>l.clienteId===clienteSelecionado.id)
-    .forEach(l=>{
-      if(l.tipo==='entrada') entradas+=l.valor; else saidas+=l.valor;
-      const [ano,mes,dia]=l.data.split('-');
-      const dataFormatada=`${dia}/${mes}/${ano}`;
-      hist.innerHTML+=`<div class="${l.tipo}">${l.tipo==='entrada'?'+':'-'} R$ ${l.valor.toFixed(2)} - ${l.desc}<br><small>${l.nota} | ${dataFormatada}</small></div>`;
-    });
-
-  document.getElementById('saldoCliente').innerText=(entradas-saidas).toFixed(2);
-}
-
-function deletarCliente(){
-  if(!clienteSelecionado) return;
-  if(!confirm('Excluir cliente e todos os lançamentos?')) return;
-  clientes = clientes.filter(c=>c.id!==clienteSelecionado.id);
-  lancamentos = lancamentos.filter(l=>l.clienteId!==clienteSelecionado.id);
-  clienteSelecionado=null;
-  document.getElementById('clienteAtual').innerText='Nenhum';
-  document.getElementById('historico').innerHTML='';
-  document.getElementById('saldoCliente').innerText='0';
-  salvar();
-  listarClientes();
-}
-
-function imprimirRelatorio(){
-  if(!clienteSelecionado){ alert('Selecione um cliente'); return; }
-
-  const dataEl = document.getElementById('dataEscolhida').value;
-  const mesEl  = document.getElementById('mesEscolhido').value;
-
-  let dataFormatada='';
-  let lancsFiltrados=[];
-
-  if(dataEl){ // Prioriza data específica
-    const [ano,mes,dia]=dataEl.split('-');
-    dataFormatada=`Dia: ${dia}/${mes}/${ano}`;
-    lancsFiltrados=lancamentos.filter(l=>l.clienteId===clienteSelecionado.id && l.data===dataEl);
-  } else if(mesEl){ // Se não tiver data, imprime mês
-    const [ano,mes]=mesEl.split('-');
-    dataFormatada=`Mês: ${mes}/${ano}`;
-    lancsFiltrados=lancamentos.filter(l=>{
-      const [lAno,lMes]=l.data.split('-');
-      return l.clienteId===clienteSelecionado.id && lAno===ano && lMes===mes;
-    });
-  } else{
-    alert('Escolha uma data ou um mês para imprimir'); 
-    return;
+// Adicionar cliente
+function adicionarCliente() {
+  const nome = document.getElementById('clienteNome').value.trim();
+  const cpfCnpj = document.getElementById('clienteCpfCnpj').value.trim();
+  const endereco = document.getElementById('clienteEndereco').value.trim();
+  const telefone = document.getElementById('clienteTelefone').value.trim();
+  
+  if(!nome || !cpfCnpj || !endereco || !telefone) return alert('Preencha todos os campos!');
+  
+  if(!clientes.some(c=>c.nome===nome && c.cpfCnpj===cpfCnpj)) {
+    const clienteObj = { nome, cpfCnpj, endereco, telefone };
+    clientes.push(clienteObj);
+    movimentacoes[nome] = [];
+    atualizarSelects();
+    atualizarListaClientes();
+    document.getElementById('clienteNome').value='';
+    document.getElementById('clienteCpfCnpj').value='';
+    document.getElementById('clienteEndereco').value='';
+    document.getElementById('clienteTelefone').value='';
+  } else {
+    alert('Cliente já existe!');
   }
+}
 
-  document.getElementById('clientePrint').innerText=clienteSelecionado.nome;
-  document.getElementById('dataPrint').innerText=dataFormatada;
+// Preenchimento inteligente
+function preencherInteligente() {
+  const nome = document.getElementById('clienteNome').value.trim();
+  if(!nome) return;
 
-  const histPrint=document.getElementById('historicoPrint');
-  histPrint.innerHTML='';
-  if(lancsFiltrados.length===0) histPrint.innerHTML='<p>Nenhum lançamento neste período.</p>';
-  else lancsFiltrados.forEach(l=>{
-    const [lAno,lMes,lDia]=l.data.split('-');
-    const dataFmt=`${lDia}/${lMes}/${lAno}`;
-    histPrint.innerHTML+=`<div>${l.tipo==='entrada'?'+':'-'} R$ ${l.valor.toFixed(2)} - ${l.desc}<br><small>${l.nota} | ${dataFmt}</small></div>`;
+  // CPF aleatório válido
+  const cpf = gerarCPF();
+  document.getElementById('clienteCpfCnpj').value = cpf;
+
+  // Telefone rápido
+  const tel = "31" + Math.floor(900000000 + Math.random()*99999999);
+  document.getElementById('clienteTelefone').value = tel;
+
+  // Endereço padrão
+  document.getElementById('clienteEndereco').value = "Rua Exemplo, Bairro Teste, Belo Horizonte";
+}
+
+// Gerar CPF válido simples
+function gerarCPF() {
+  let n = [];
+  for(let i=0;i<9;i++) n[i]=Math.floor(Math.random()*9);
+  
+  let d1 = n.reduce((acc,num,i)=>acc + num*(10-i),0);
+  d1 = 11 - (d1 % 11); if(d1>=10)d1=0;
+
+  let d2 = n.reduce((acc,num,i)=>acc + num*(11-i),0) + d1*2;
+  d2 = 11 - (d2 % 11); if(d2>=10)d2=0;
+
+  return n.join('') + d1 + d2;
+}
+
+// Atualizar selects
+function atualizarSelects() {
+  const clientesSelect = document.getElementById('clientesSelect');
+  clientesSelect.innerHTML='';
+  clientes.forEach(c=>{
+    const option = document.createElement('option');
+    option.value = c.nome;
+    option.textContent = c.nome;
+    clientesSelect.appendChild(option);
   });
+}
 
+// Atualizar lista clientes vertical com seleção
+function atualizarListaClientes() {
+  const lista = document.getElementById('listaClientes');
+  lista.innerHTML='';
+  clientes.forEach(c=>{
+    const btn = document.createElement('button');
+    btn.textContent = c.nome;
+    
+    btn.onclick = ()=>{
+      document.querySelectorAll('#listaClientes button').forEach(b => b.style.background = '');
+      clienteSelecionado = c.nome;
+      btn.style.background = '#a0c4ff';
+      mostrarMovimentacoes(c.nome);
+      abrirAba('movimentacoes');
+    };
+    lista.appendChild(btn);
+  });
+}
+
+// Adicionar movimentação
+function adicionarMovimentacao() {
+  const cliente = document.getElementById('clientesSelect').value;
+  if(!cliente) return alert('Selecione um cliente!');
+  const data = document.getElementById('movData').value;
+  const descricao = document.getElementById('movDescricao').value.trim();
+  const tipo = document.getElementById('movTipo').value;
+  const valor = parseFloat(document.getElementById('movValor').value);
+  if(!data || !descricao || !valor) return alert('Preencha todos os campos!');
+
+  movimentacoes[cliente].push({ data, descricao, tipo, valor });
+  if(clienteSelecionado === cliente) mostrarMovimentacoes(cliente);
+
+  document.getElementById('movData').value='';
+  document.getElementById('movDescricao').value='';
+  document.getElementById('movValor').value='';
+}
+
+// Mostrar movimentações
+function mostrarMovimentacoes(cliente) {
+  const tbody = document.querySelector('#relatorioTable tbody');
+  tbody.innerHTML='';
+  let saldo=0, totalEntrada=0, totalSaida=0;
+  clienteSelecionado=cliente;
+  document.getElementById('relClienteNome').textContent="Cliente: "+cliente;
+  const movimentos = movimentacoes[cliente].sort((a,b)=>new Date(a.data)-new Date(b.data));
+  let dataInicio=movimentos.length?movimentos[0].data:'';
+  let dataFim=movimentos.length?movimentos[movimentos.length-1].data:'';
+  document.getElementById('relPeriodo').textContent="Período: "+dataInicio+" até "+dataFim;
+
+  movimentos.forEach(mov=>{
+    saldo+=(mov.tipo==='entrada'?mov.valor:-mov.valor);
+    if(mov.tipo==='entrada') totalEntrada+=mov.valor;
+    if(mov.tipo==='saida') totalSaida+=mov.valor;
+    const tr=document.createElement('tr');
+    tr.className=mov.tipo;
+    tr.innerHTML=`<td>${mov.data}</td>
+                  <td>${mov.descricao}</td>
+                  <td>${mov.tipo==='entrada'?mov.valor.toFixed(2):''}</td>
+                  <td>${mov.tipo==='saida'?mov.valor.toFixed(2):''}</td>
+                  <td>${saldo.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('resumoFinal').textContent=`Total Entrada: R$${totalEntrada.toFixed(2)} | Total Saída: R$${totalSaida.toFixed(2)} | Saldo Final: R$${saldo.toFixed(2)}`;
+}
+
+// Excluir cliente
+function excluirCliente() {
+  if(!clienteSelecionado) return alert('Selecione um cliente para excluir!');
+  const confirma = confirm(`Deseja excluir "${clienteSelecionado}" e todas as movimentações?`);
+  if(!confirma) return;
+  
+  delete movimentacoes[clienteSelecionado];
+  clientes = clientes.filter(c => c.nome !== clienteSelecionado);
+  clienteSelecionado = null;
+  
+  atualizarSelects();
+  atualizarListaClientes();
+  
+  document.querySelector('#relatorioTable tbody').innerHTML='';
+  document.getElementById('relClienteNome').textContent='';
+  document.getElementById('relPeriodo').textContent='';
+  document.getElementById('resumoFinal').textContent='';
+}
+
+// Imprimir / PDF
+function imprimirRelatorio() {
+  if(!clienteSelecionado) return alert('Selecione um cliente!');
   window.print();
 }
 
-listarClientes();
+// WhatsApp
+function enviarWhatsApp() {
+  if(!clienteSelecionado) return alert('Selecione um cliente!');
+  let mensagem=`Relatório do cliente: ${clienteSelecionado}\n\n`;
+  movimentacoes[clienteSelecionado].forEach(mov=>{
+    mensagem+=`${mov.data} - ${mov.descricao} - ${mov.tipo==='entrada'?'+':'-'}${mov.valor.toFixed(2)}\n`;
+  });
+  const url=`https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
+  window.open(url,'_blank');
+}
 </script>
+
 </body>
 </html>
-

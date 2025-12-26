@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contabilidade desde 2019</title>
+
 <style>
 body { font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px; }
 h1,h2 { margin-top: 20px; }
@@ -15,269 +17,240 @@ th { background: #555; color: #fff; }
 tr.entrada { background: #d4f8d4; }
 tr.saida { background: #f8d4d4; }
 
-/* Menu de abas */
 .tabs { display: flex; margin-bottom: 10px; }
 .tab { padding: 10px 20px; cursor: pointer; background: #ddd; margin-right: 2px; border-radius: 5px 5px 0 0; }
 .tab.active { background: #555; color: #fff; }
 .tabContent { display: none; padding: 10px; background: #fff; border-radius: 0 5px 5px 5px; }
 
-/* Lista de clientes vertical */
-#listaClientes button { display: block; width: 100%; margin: 3px 0; padding: 6px; text-align: left; }
-
+.linhaCliente {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.linhaCliente button:first-child {
+  flex: 1;
+  text-align: left;
+}
+.btnExcluir {
+  background: #c62828;
+  color: #fff;
+}
 @media print {
-  body { background: #fff; }
   .tabs, input, select, button { display: none; }
-  table { page-break-inside: auto; }
-  tr { page-break-inside: avoid; page-break-after: auto; }
 }
 </style>
 </head>
+
 <body>
 
 <h1>Contabilidade desde 2019</h1>
 
-<!-- Menu de abas -->
 <div class="tabs">
   <div class="tab active" onclick="abrirAba('cadastro')">Cadastro Cliente</div>
   <div class="tab" onclick="abrirAba('lista')">Lista de Clientes</div>
-  <div class="tab" onclick="abrirAba('movimentacoes')">Movimentações / Relatório</div>
+  <div class="tab" onclick="abrirAba('movimentacoes')">Movimentações</div>
 </div>
 
-<!-- Aba Cadastro -->
+<!-- CADASTRO -->
 <div id="cadastro" class="tabContent" style="display:block;">
   <h2>Cadastro de Cliente</h2>
-  <input type="text" id="clienteNome" placeholder="Nome do cliente" onblur="preencherInteligente()"><br>
-  <input type="text" id="clienteCpfCnpj" placeholder="CPF / CNPJ"><br>
-  <input type="text" id="clienteEndereco" placeholder="Endereço"><br>
-  <input type="text" id="clienteTelefone" placeholder="Telefone"><br>
+  <input id="clienteNome" placeholder="Nome"><br>
+  <input id="clienteCpfCnpj" placeholder="CPF / CNPJ"><br>
+  <input id="clienteEndereco" placeholder="Endereço"><br>
+  <input id="clienteTelefone" placeholder="Telefone"><br>
   <button onclick="adicionarCliente()">Adicionar Cliente</button>
 </div>
 
-<!-- Aba Lista -->
+<!-- LISTA -->
 <div id="lista" class="tabContent">
   <h2>Lista de Clientes</h2>
   <div id="listaClientes"></div>
-  <button onclick="excluirCliente()">Excluir Cliente Selecionado</button>
 </div>
 
-<!-- Aba Movimentações -->
+<!-- MOVIMENTAÇÕES -->
 <div id="movimentacoes" class="tabContent">
-  <h2>Lançamento de Movimentação</h2>
+  <h2>Lançamento</h2>
   <select id="clientesSelect"></select><br>
-  <label>Data: <input type="date" id="movData"></label><br>
-  <label>Descrição: <input type="text" id="movDescricao"></label><br>
-  <label>Tipo:
-    <select id="movTipo">
-      <option value="entrada">Entrada</option>
-      <option value="saida">Saída</option>
-    </select>
-  </label><br>
-  <label>Valor: <input type="number" id="movValor"></label><br>
-  <button onclick="adicionarMovimentacao()">Adicionar Movimentação</button>
+  <input type="date" id="movData"><br>
+  <input id="movDescricao" placeholder="Descrição"><br>
+  <select id="movTipo">
+    <option value="entrada">Entrada</option>
+    <option value="saida">Saída</option>
+  </select><br>
+  <input type="number" id="movValor" placeholder="Valor"><br>
+  <button onclick="adicionarMovimentacao()">Adicionar</button>
 
-  <h2>Movimentações do Cliente</h2>
-  <div id="relatorioCliente">
-    <h3 id="relClienteNome"></h3>
-    <h4 id="relPeriodo"></h4>
-    <table id="relatorioTable">
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Descrição</th>
-          <th>Entrada (R$)</th>
-          <th>Saída (R$)</th>
-          <th>Saldo (R$)</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <h4 id="resumoFinal"></h4>
-  </div>
+  <h2>Relatório</h2>
+  <h3 id="relClienteNome"></h3>
+  <h4 id="relPeriodo"></h4>
 
-  <button onclick="imprimirRelatorio()">Imprimir / PDF</button>
-  <button onclick="enviarWhatsApp()">Enviar WhatsApp</button>
+  <table id="relatorioTable">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Entrada</th>
+        <th>Saída</th>
+        <th>Saldo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h4 id="resumoFinal"></h4>
+
+  <button onclick="imprimirRelatorio()">Imprimir</button>
+  <button onclick="enviarWhatsApp()">WhatsApp</button>
 </div>
 
 <script>
-let clientes = [];
-let movimentacoes = {};
+// ================= CARREGAMENTO =================
+let clientes = JSON.parse(localStorage.getItem('clientes')) || [];
+let movimentacoes = JSON.parse(localStorage.getItem('movimentacoes')) || {};
 let clienteSelecionado = null;
 
-// Funções de abas
-function abrirAba(aba) {
-  document.querySelectorAll('.tabContent').forEach(div => div.style.display='none');
-  document.getElementById(aba).style.display='block';
-  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-  document.querySelector(`.tab[onclick="abrirAba('${aba}')"]`).classList.add('active');
+function salvarDados(){
+  localStorage.setItem('clientes', JSON.stringify(clientes));
+  localStorage.setItem('movimentacoes', JSON.stringify(movimentacoes));
+}
+window.addEventListener("beforeunload", salvarDados);
+
+// ================= ABAS =================
+function abrirAba(id){
+  document.querySelectorAll('.tabContent').forEach(d=>d.style.display='none');
+  document.getElementById(id).style.display='block';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
 }
 
-// Adicionar cliente
-function adicionarCliente() {
-  const nome = document.getElementById('clienteNome').value.trim();
-  const cpfCnpj = document.getElementById('clienteCpfCnpj').value.trim();
-  const endereco = document.getElementById('clienteEndereco').value.trim();
-  const telefone = document.getElementById('clienteTelefone').value.trim();
-  
-  if(!nome || !cpfCnpj || !endereco || !telefone) return alert('Preencha todos os campos!');
-  
-  if(!clientes.some(c=>c.nome===nome && c.cpfCnpj===cpfCnpj)) {
-    const clienteObj = { nome, cpfCnpj, endereco, telefone };
-    clientes.push(clienteObj);
-    movimentacoes[nome] = [];
-    atualizarSelects();
-    atualizarListaClientes();
-    document.getElementById('clienteNome').value='';
-    document.getElementById('clienteCpfCnpj').value='';
-    document.getElementById('clienteEndereco').value='';
-    document.getElementById('clienteTelefone').value='';
-  } else {
-    alert('Cliente já existe!');
+// ================= CLIENTES =================
+function adicionarCliente(){
+  const nome = clienteNome.value.trim();
+  if(!nome) return alert("Informe o nome");
+
+  if(clientes.some(c=>c.nome===nome)){
+    alert("Cliente já existe");
+    return;
   }
-}
 
-// Preenchimento inteligente
-function preencherInteligente() {
-  const nome = document.getElementById('clienteNome').value.trim();
-  if(!nome) return;
-
-  // CPF aleatório válido
-  const cpf = gerarCPF();
-  document.getElementById('clienteCpfCnpj').value = cpf;
-
-  // Telefone rápido
-  const tel = "31" + Math.floor(900000000 + Math.random()*99999999);
-  document.getElementById('clienteTelefone').value = tel;
-
-  // Endereço padrão
-  document.getElementById('clienteEndereco').value = "Rua Exemplo, Bairro Teste, Belo Horizonte";
-}
-
-// Gerar CPF válido simples
-function gerarCPF() {
-  let n = [];
-  for(let i=0;i<9;i++) n[i]=Math.floor(Math.random()*9);
-  
-  let d1 = n.reduce((acc,num,i)=>acc + num*(10-i),0);
-  d1 = 11 - (d1 % 11); if(d1>=10)d1=0;
-
-  let d2 = n.reduce((acc,num,i)=>acc + num*(11-i),0) + d1*2;
-  d2 = 11 - (d2 % 11); if(d2>=10)d2=0;
-
-  return n.join('') + d1 + d2;
-}
-
-// Atualizar selects
-function atualizarSelects() {
-  const clientesSelect = document.getElementById('clientesSelect');
-  clientesSelect.innerHTML='';
-  clientes.forEach(c=>{
-    const option = document.createElement('option');
-    option.value = c.nome;
-    option.textContent = c.nome;
-    clientesSelect.appendChild(option);
+  clientes.push({
+    nome,
+    cpfCnpj: clienteCpfCnpj.value,
+    endereco: clienteEndereco.value,
+    telefone: clienteTelefone.value
   });
+
+  movimentacoes[nome] = [];
+  salvarDados();
+  atualizarTudo();
+
+  clienteNome.value = clienteCpfCnpj.value =
+  clienteEndereco.value = clienteTelefone.value = '';
 }
 
-// Atualizar lista clientes vertical com seleção
-function atualizarListaClientes() {
-  const lista = document.getElementById('listaClientes');
-  lista.innerHTML='';
+function atualizarTudo(){
+  clientesSelect.innerHTML = '';
+  listaClientes.innerHTML = '';
+
   clientes.forEach(c=>{
-    const btn = document.createElement('button');
-    btn.textContent = c.nome;
-    
-    btn.onclick = ()=>{
-      document.querySelectorAll('#listaClientes button').forEach(b => b.style.background = '');
+    // select
+    const op = document.createElement('option');
+    op.value = c.nome;
+    op.textContent = c.nome;
+    clientesSelect.appendChild(op);
+
+    // linha
+    const linha = document.createElement('div');
+    linha.className = 'linhaCliente';
+
+    // botão nome
+    const btnNome = document.createElement('button');
+    btnNome.textContent = c.nome;
+    btnNome.onclick = ()=>{
       clienteSelecionado = c.nome;
-      btn.style.background = '#a0c4ff';
       mostrarMovimentacoes(c.nome);
       abrirAba('movimentacoes');
     };
-    lista.appendChild(btn);
+
+    // botão excluir
+    const btnExcluir = document.createElement('button');
+    btnExcluir.textContent = 'Excluir';
+    btnExcluir.className = 'btnExcluir';
+    btnExcluir.onclick = ()=>{
+      if(confirm(`Excluir o cliente "${c.nome}"?`)){
+        clientes = clientes.filter(cli=>cli.nome!==c.nome);
+        delete movimentacoes[c.nome];
+        salvarDados();
+        atualizarTudo();
+      }
+    };
+
+    linha.appendChild(btnNome);
+    linha.appendChild(btnExcluir);
+    listaClientes.appendChild(linha);
   });
 }
 
-// Adicionar movimentação
-function adicionarMovimentacao() {
-  const cliente = document.getElementById('clientesSelect').value;
-  if(!cliente) return alert('Selecione um cliente!');
-  const data = document.getElementById('movData').value;
-  const descricao = document.getElementById('movDescricao').value.trim();
-  const tipo = document.getElementById('movTipo').value;
-  const valor = parseFloat(document.getElementById('movValor').value);
-  if(!data || !descricao || !valor) return alert('Preencha todos os campos!');
+// ================= MOVIMENTAÇÕES =================
+function adicionarMovimentacao(){
+  const c = clientesSelect.value;
+  if(!c) return;
 
-  movimentacoes[cliente].push({ data, descricao, tipo, valor });
-  if(clienteSelecionado === cliente) mostrarMovimentacoes(cliente);
+  if(!movimentacoes[c]) movimentacoes[c] = [];
 
-  document.getElementById('movData').value='';
-  document.getElementById('movDescricao').value='';
-  document.getElementById('movValor').value='';
-}
-
-// Mostrar movimentações
-function mostrarMovimentacoes(cliente) {
-  const tbody = document.querySelector('#relatorioTable tbody');
-  tbody.innerHTML='';
-  let saldo=0, totalEntrada=0, totalSaida=0;
-  clienteSelecionado=cliente;
-  document.getElementById('relClienteNome').textContent="Cliente: "+cliente;
-  const movimentos = movimentacoes[cliente].sort((a,b)=>new Date(a.data)-new Date(b.data));
-  let dataInicio=movimentos.length?movimentos[0].data:'';
-  let dataFim=movimentos.length?movimentos[movimentos.length-1].data:'';
-  document.getElementById('relPeriodo').textContent="Período: "+dataInicio+" até "+dataFim;
-
-  movimentos.forEach(mov=>{
-    saldo+=(mov.tipo==='entrada'?mov.valor:-mov.valor);
-    if(mov.tipo==='entrada') totalEntrada+=mov.valor;
-    if(mov.tipo==='saida') totalSaida+=mov.valor;
-    const tr=document.createElement('tr');
-    tr.className=mov.tipo;
-    tr.innerHTML=`<td>${mov.data}</td>
-                  <td>${mov.descricao}</td>
-                  <td>${mov.tipo==='entrada'?mov.valor.toFixed(2):''}</td>
-                  <td>${mov.tipo==='saida'?mov.valor.toFixed(2):''}</td>
-                  <td>${saldo.toFixed(2)}</td>`;
-    tbody.appendChild(tr);
+  movimentacoes[c].push({
+    data: movData.value,
+    descricao: movDescricao.value,
+    tipo: movTipo.value,
+    valor: Number(movValor.value)
   });
-  document.getElementById('resumoFinal').textContent=`Total Entrada: R$${totalEntrada.toFixed(2)} | Total Saída: R$${totalSaida.toFixed(2)} | Saldo Final: R$${saldo.toFixed(2)}`;
+
+  salvarDados();
+  mostrarMovimentacoes(c);
+
+  movData.value = movDescricao.value = movValor.value = '';
 }
 
-// Excluir cliente
-function excluirCliente() {
-  if(!clienteSelecionado) return alert('Selecione um cliente para excluir!');
-  const confirma = confirm(`Deseja excluir "${clienteSelecionado}" e todas as movimentações?`);
-  if(!confirma) return;
-  
-  delete movimentacoes[clienteSelecionado];
-  clientes = clientes.filter(c => c.nome !== clienteSelecionado);
-  clienteSelecionado = null;
-  
-  atualizarSelects();
-  atualizarListaClientes();
-  
-  document.querySelector('#relatorioTable tbody').innerHTML='';
-  document.getElementById('relClienteNome').textContent='';
-  document.getElementById('relPeriodo').textContent='';
-  document.getElementById('resumoFinal').textContent='';
-}
+function mostrarMovimentacoes(c){
+  const tbody = relatorioTable.querySelector('tbody');
+  tbody.innerHTML = '';
+  let saldo = 0, e = 0, s = 0;
 
-// Imprimir / PDF
-function imprimirRelatorio() {
-  if(!clienteSelecionado) return alert('Selecione um cliente!');
-  window.print();
-}
+  relClienteNome.textContent = "Cliente: " + c;
 
-// WhatsApp
-function enviarWhatsApp() {
-  if(!clienteSelecionado) return alert('Selecione um cliente!');
-  let mensagem=`Relatório do cliente: ${clienteSelecionado}\n\n`;
-  movimentacoes[clienteSelecionado].forEach(mov=>{
-    mensagem+=`${mov.data} - ${mov.descricao} - ${mov.tipo==='entrada'?'+':'-'}${mov.valor.toFixed(2)}\n`;
+  [...movimentacoes[c]].sort((a,b)=>new Date(a.data)-new Date(b.data))
+  .forEach(m=>{
+    saldo += m.tipo==='entrada'?m.valor:-m.valor;
+    m.tipo==='entrada'?e+=m.valor:s+=m.valor;
+
+    tbody.innerHTML += `
+      <tr class="${m.tipo}">
+        <td>${m.data}</td>
+        <td>${m.descricao}</td>
+        <td>${m.tipo==='entrada'?m.valor.toFixed(2):''}</td>
+        <td>${m.tipo==='saida'?m.valor.toFixed(2):''}</td>
+        <td>${saldo.toFixed(2)}</td>
+      </tr>`;
   });
-  const url=`https://api.whatsapp.com/send?text=${encodeURIComponent(mensagem)}`;
-  window.open(url,'_blank');
+
+  resumoFinal.textContent =
+    `Entrada R$${e.toFixed(2)} | Saída R$${s.toFixed(2)} | Saldo R$${saldo.toFixed(2)}`;
 }
+
+// ================= OUTROS =================
+function imprimirRelatorio(){ window.print(); }
+
+function enviarWhatsApp(){
+  if(!clienteSelecionado) return;
+  let msg = `Relatório ${clienteSelecionado}\n`;
+  movimentacoes[clienteSelecionado].forEach(m=>{
+    msg += `${m.data} ${m.descricao} ${m.tipo==='entrada'?'+':'-'}${m.valor}\n`;
+  });
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`);
+}
+
+// ================= INIT =================
+window.onload = atualizarTudo;
 </script>
 
 </body>
